@@ -1,0 +1,91 @@
+{
+    "info": {
+        "sysDescr": "ZyXEL ES-2024A SNMP Simulator",
+        "sysUpTime": "123456",
+        "sysName": "demo-switch",
+        "sysLocation": "Test-Lab",
+        "sysObjectID": "SNMPv2-SMI::enterprises.890.1.5.8"
+    },
+    "ports": {
+        "1": {
+            "index": 1,
+            "descr": "Port-1",
+            "status": "DOWN",
+            "class": "down",
+            "speed": "100 Mbps",
+            "vlans": "VLAN 11",
+            "macs": []
+        },
+        "2": {
+            "index": 2,
+            "descr": "Port-2",
+            "status": "UP",
+            "class": "up",
+            "speed": "100 Mbps",
+            "vlans": "VLAN 12",
+            "macs": [
+                "00:11:22:33:44:02"
+            ]
+        },
+        "3": {
+            "index": 3,
+            "descr": "Port-3",
+            "status": "DOWN",
+            "class": "down",
+            "speed": "100 Mbps",
+            "vlans": "VLAN 13",
+            "macs": []
+        },
+        "4": {
+            "index": 4,
+            "descr": "Port-4",
+            "status": "UP",
+            "class": "up",
+            "speed": "100 Mbps",
+            "vlans": "VLAN 14",
+            "macs": [
+                "00:11:22:33:44:04"
+            ]
+        },
+        "5": {
+            "index": 5,
+            "descr": "Port-5",
+            "status": "DOWN",
+            "class": "down",
+            "speed": "100 Mbps",
+            "vlans": "VLAN 15",
+            "macs": []
+        },
+        "6": {
+            "index": 6,
+            "descr": "Port-6",
+            "status": "UP",
+            "class": "up",
+            "speed": "100 Mbps",
+            "vlans": "VLAN 16",
+            "macs": [
+                "00:11:22:33:44:06"
+            ]
+        },
+        "7": {
+            "index": 7,
+            "descr": "Port-7",
+            "status": "DOWN",
+            "class": "down",
+            "speed": "100 Mbps",
+            "vlans": "VLAN 17",
+            "macs": []
+        },
+        "8": {
+            "index": 8,
+            "descr": "Port-8",
+            "status": "UP",
+            "class": "up",
+            "speed": "100 Mbps",
+            "vlans": "VLAN 18",
+            "macs": [
+                "00:11:22:33:44:08"
+            ]
+        }
+    }
+}
