@@ -35,6 +35,11 @@ sudo apt install php php-snmp nginx snmp
 /var/www/html/switch/
 ```
 
+А файл конфигурации в:
+```bash
+/etc/nginx/sites-available/switch.conf
+```
+
 Дай права на запись в папку кэша:
 ```bash
 sudo chown -R www-data:www-data /var/www/html/switch/cache
