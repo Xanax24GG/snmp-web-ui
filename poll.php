@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 // ======== КОНФИГУРАЦИЯ ========
-$DEFAULT_COMMUNITY = 'public';
+$DEFAULT_COMMUNITY = 'cricket';
 $DEFAULT_SNMP_VERSION = '2c';
 $CACHE_DIR = __DIR__ . '/cache';
 $CACHE_TTL = 300; // 5 минут в секундах
@@ -20,25 +20,32 @@ try {
     
     // Проверка кэша
     $cacheFile = "$CACHE_DIR/$ip.json";
-    $cacheData = json_decode(file_get_contents($cacheFile), true);
-    $data = is_array($cacheData) ? $cacheData : [];
-    $source = 'cache';
-    
-    if ($cacheData) {
-        $data = $cacheData;
-        $source = 'cache';
-    } else {
+    $data = [];
+    $source = 'live';
+    $cacheData = null;
+
+    if (file_exists($cacheFile)) {
+        $raw = file_get_contents($cacheFile);
+        $decoded = json_decode($raw, true);
+        if (is_array($decoded)) {
+            $cacheData = $decoded;
+            $data = $cacheData;
+            $source = 'cache';
+        }
+    }
+
+    if (!$cacheData) {
         $data = fetch_snmp_data($ip, $community, $snmp_version);
         save_cache($cacheFile, $data);
         $source = 'live';
     }
     
     // Вывод данных
-    render_html($data, $ip, $source);
+    render_html($data, $ip, $source, $community);
     
-} catch (Throwable $e) {
-    handle_error($e);
-}
+    } catch (Throwable $e) {
+        handle_error($e);
+    }
 
 // ======== ФУНКЦИИ ========
 
@@ -63,9 +70,10 @@ function snmp_get(string $host, string $community, string $version, string $oid)
     );
     
     $result = trim(shell_exec($cmd));
-    return ($result === '' || strpos($result, 'Timeout') !== false) 
-        ? '—' 
-        : htmlspecialchars($result);
+    if ($result === '' || str_contains($result, 'Timeout') || str_contains($result, 'No Response')) {
+        return '—';
+    }
+    return htmlspecialchars($result);
 }
 
 /** Выполнение SNMP WALK запроса */
@@ -78,8 +86,11 @@ function snmp_walk(string $host, string $community, string $version, string $oid
         escapeshellarg($oid)
     );
     
-    $output = trim(shell_exec($cmd));
-    return $output ? explode("\n", $output) : [];
+    $result = trim(shell_exec($cmd));
+    if ($result === '' || str_contains($result, 'Timeout') || str_contains($result, 'No Response')) {
+        return '—';
+    }
+    return htmlspecialchars($result);
 }
 
 /** Загрузка данных с устройства */
@@ -94,7 +105,15 @@ function fetch_snmp_data(string $ip, string $community, string $version): array 
         'sysLocation' => snmp_get($host, $community, $version, '.1.3.6.1.2.1.1.6.0'),
         'sysObjectID' => snmp_get($host, $community, $version, '.1.3.6.1.2.1.1.2.0'),
     ];
-    
+    // Если все значения пустые, значит SNMP не отвечает
+    if (array_filter($info, fn($v) => $v !== '—') === []) {
+        throw new RuntimeException("SNMP-запросы не дали результата. Проверьте IP, community и доступность устройства.");
+    }
+
+    if (empty($info['sysDescr']) || $info['sysDescr'] === '—') {
+	    throw new RuntimeException("Устройство $ip не отвечает по SNMP (community: $community).");
+    }
+
     // Количество портов
     $portCount = (int) preg_replace('/\D+/', '', 
         snmp_get($host, $community, $version, '.1.3.6.1.2.1.2.1.0')
@@ -104,18 +123,20 @@ function fetch_snmp_data(string $ip, string $community, string $version): array 
     $ports = [];
     for ($i = 1; $i <= $portCount; $i++) {
         $status = snmp_get($host, $community, $version, ".1.3.6.1.2.1.2.2.1.8.$i");
-        $ports[$i] = [
+	$raw_speed = snmp_get($host, $community, $version, ".1.3.6.1.2.1.2.2.1.5.$i");
+	$mbps = is_numeric($raw_speed) ? round((int)$raw_speed / 1_000_000) . ' Mbps' : '—';
+	$ports[$i] = [
             'index'  => $i,
             'descr'  => snmp_get($host, $community, $version, ".1.3.6.1.2.1.2.2.1.2.$i"),
             'status' => strpos($status, '1') !== false ? 'UP' : 'DOWN',
             'class'  => strpos($status, '1') !== false ? 'up' : 'down',
-            'speed'  => snmp_get($host, $community, $version, ".1.3.6.1.2.1.2.2.1.5.$i") . ' bps',
+            'speed'  => $mbps,
             'vlans'  => '—',
             'macs'   => []
         ];
     }
     
-    // VLAN информация (упрощенная реализация)
+    // VLAN информация
     try {
         $vlanData = snmp_walk($host, $community, $version, '.1.3.6.1.2.1.17.7.1.4.3.1.2');
         foreach ($vlanData as $line) {
@@ -130,7 +151,7 @@ function fetch_snmp_data(string $ip, string $community, string $version): array 
         error_log("VLAN error: " . $e->getMessage());
     }
     
-    // MAC-адреса (упрощенная реализация)
+    // MAC-адреса
     try {
         $macData = snmp_walk($host, $community, $version, '.1.3.6.1.2.1.17.4.3.1.1');
         foreach ($macData as $line) {
@@ -169,7 +190,7 @@ function save_cache(string $cacheFile, array $data): void {
 }
 
 /** Вывод HTML */
-function render_html(array $data, string $ip, string $source): void {
+function render_html(array $data, string $ip, string $source, string $community): void {
     $info = $data['info'];
     $ports = $data['ports'];
     ?>
@@ -220,6 +241,7 @@ function render_html(array $data, string $ip, string $source): void {
                     <div>
                         <h1 style="margin: 0;"><?= htmlspecialchars($info['sysName']) ?></h1>
                         <p style="margin: 5px 0 0; color: #64748b;">IP: <?= htmlspecialchars($ip) ?></p>
+			            <p style="margin: 5px 0 0; color: #64748b;">Community: <?= htmlspecialchars($community) ?></p>
                     </div>
                     <div class="source-tag">Источник: <?= $source === 'cache' ? 'Кэш' : 'Live данные' ?></div>
                 </div>
@@ -299,14 +321,13 @@ function render_html(array $data, string $ip, string $source): void {
 
 /** Обработка ошибок */
 function handle_error(Throwable $e): void {
-    error_log("Error: " . $e->getMessage());
-    
+    error_log("[SNMP ERROR] {$e->getMessage()} from {$e->getFile()}:{$e->getLine()}");
     $status = $e instanceof InvalidArgumentException ? 400 : 500;
     http_response_code($status);
-    
+
     $errorTitle = $status === 400 ? "Ошибка запроса" : "Ошибка сервера";
-    $errorMessage = $status === 400 ? $e->getMessage() : "Внутренняя ошибка сервера";
-    
+    $errorMessage = htmlspecialchars($e->getMessage());
+
     echo <<<HTML
     <!DOCTYPE html>
     <html lang="ru">
