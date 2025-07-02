@@ -27,6 +27,7 @@ function save_profile_php(string $filename, array $info): void {
     file_put_contents($filename, $php);
 }
 
+// TEST-профиль
 function create_test_cache(string $path): void {
     $data = [
         'info' => [
@@ -44,7 +45,7 @@ function create_test_cache(string $path): void {
             'descr' => "Port-$i",
             'status' => $i % 2 === 0 ? 'UP' : 'DOWN',
             'class' => $i % 2 === 0 ? 'up' : 'down',
-            'speed' => '100000000 bps',
+            'speed' => '100 Mbps',
             'vlans' => 'VLAN ' . (10 + $i),
             'macs' => $i % 2 === 0 ? [sprintf("00:11:22:33:44:%02X", $i)] : []
         ];
@@ -62,14 +63,17 @@ if ($save === 'test') {
     $ip = '127.0.0.1'; // Принудительно устанавливаем IP для тестового профиля
     $cacheFile = __DIR__ . "/cache/127.0.0.1.json";
     create_test_cache($cacheFile);
-    $success = '✔️ Тестовый профиль 127.0.0.1 создан';
+    $success = 'Тестовый профиль 127.0.0.1 создан';
+    $descr = 'test';
 }
 
 if ($ip !== '') {
     if (!filter_var($ip, FILTER_VALIDATE_IP)) {
         $error = "Неверный IP-адрес: $ip";
     } else {
-        $descr = snmp_get_quiet($ip, '1.3.6.1.2.1.1.1.0');
+        if ($descr != 'test') {
+            $descr = snmp_get_quiet($ip, '1.3.6.1.2.1.1.1.0');
+        }
         $sysObjectID = snmp_get_quiet($ip, '1.3.6.1.2.1.1.2.0');
         $sysName = snmp_get_quiet($ip, '1.3.6.1.2.1.1.5.0');
 
