@@ -334,7 +334,7 @@ function handle_error(Throwable $e): void {
     <head>
         <meta charset="UTF-8">
         <title>Ошибка</title>
-        <link rel="stylesheet" href="styles.css">
+        <link rel="stylesheet" href="style.css">
     </head>
     <body>
         <div class="container">
