@@ -34,6 +34,12 @@ sudo apt install nginx php php-snmp snmp
 sudo apt install php8.3-fpm
 ```
 
+Linux Oracle:
+```bash
+sudo yum install nginx php php-snmp
+sudo yum install net-snmp net-snmp-utils
+```
+
 Размести проект в:
 
 ```bash
